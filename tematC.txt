@@ -1,0 +1,577 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sprawozdanie PUBLIC "sprawozdanie" "http://mhanckow.vm.wmi.amu.edu.pl$
+<sprawozdanie przedmiot="SIK" temat="C">
+<imie_nazwisko>Aleksandra ZbÄ^eska</imie_nazwisko>
+<nr_indeksu>434823</nr_indeksu>
+<liczba_pkt>3.75</liczba_pkt>
+<przyklad nr="1 Opis 1" pkt="0.75"></przyklad>
+<przyklad nr="1, 2 Opis 2" pkt="1"></przyklad>
+<zadanie nr="1 Opis 2" pkt="1"></zadanie>
+<zadanie nr="2 Opis 2" pkt="1"></zadanie>
+</sprawozdanie>
+
+
+Przyklad 1 Opis 1 -------------------------------------
+
+/// wydruk
+
+javac c5p1a.java
+javac c5p1b.java
+
+
+/// wydruk
+
+java c5p1a 10006
+Oczekujê...
+Nadawca: /127.0.0.1 (localhost)
+Sieci Komputerowe
+
+
+/// wydruk
+
+java c5p1b localhost 10006
+Serwer odpowiedzial: Otrzymano.
+
+
+Przyklad 1, 2 Opis 2 -------------------------------------
+
+/// wydruk
+
+using System;
+using System.Threading;
+using System.Text;
+using System.Net;
+using System.Net.Sockets;
+
+/// <summary>
+/// Summary description for Class1
+/// </summary>
+public class Server
+{
+    internal class StateObject
+    {
+        internal byte[] sBuffer;
+        internal Socket sSocket;
+        internal StateObject(int size, Socket sock)
+        {
+            sBuffer = new byte[size];
+            sSocket = sock;
+        }
+
+    }
+
+    static void Main()
+    {
+        IPEndPoint ipEndpoint = new IPEndPoint(IPAddress.IPv6Any, 1900);
+        Socket listenSocket = new Socket(AddressFamily.InterNetworkV6, SocketTy$
+        listenSocket.Bind(ipEndpoint);
+        listenSocket.Listen(1);
+        // Zamiast blokowac podaje metode do wywolania w przypadku
+        // polaczenia
+        IAsyncResult asyncAccept = listenSocket.BeginAccept(
+          new AsyncCallback(Server.acceptCallback),
+          listenSocket);
+
+        Console.Write("Trwa laczenie.");
+        if (writeDot(asyncAccept) == true)
+        {
+            Thread.Sleep(3000);
+        }
+    }
+
+    public static void acceptCallback(IAsyncResult asyncAccept)
+    {
+        Socket listenSocket = (Socket)asyncAccept.AsyncState;
+        Socket serverSocket =
+          listenSocket.EndAccept(asyncAccept);
+
+        if (serverSocket.Connected == false)
+        {
+            Console.WriteLine(".serwer nie polaczony.");
+            return;
+        }
+        else Console.WriteLine(".serwer polaczony.");
+
+        listenSocket.Close();
+
+        StateObject stateObject =
+          new StateObject(16, serverSocket);
+
+        // Przekazujemy StateObject, bo potrzeba zarowno gniazda,
+        // jak i bufora
+        IAsyncResult asyncReceive =
+          serverSocket.BeginReceive(
+            stateObject.sBuffer,
+            0,
+            stateObject.sBuffer.Length,
+            SocketFlags.None,
+            new AsyncCallback(receiveCallback),
+            stateObject);
+
+        Console.Write("Odbieranie danych.");
+        writeDot(asyncReceive);
+    }
+
+    public static void receiveCallback(IAsyncResult asyncReceive)
+    {
+        StateObject stateObject =
+          (StateObject)asyncReceive.AsyncState;
+        int bytesReceived =
+          stateObject.sSocket.EndReceive(asyncReceive);
+
+        Console.WriteLine(
+          ".Otrzymano {0} bajtow: {1}",
+          bytesReceived.ToString(),
+          Encoding.ASCII.GetString(stateObject.sBuffer));
+
+        byte[] sendBuffer =
+          Encoding.ASCII.GetBytes("Goodbye");
+        IAsyncResult asyncSend =
+          stateObject.sSocket.BeginSend(
+            sendBuffer,
+            0,
+            sendBuffer.Length,
+            SocketFlags.None,
+            new AsyncCallback(sendCallback),
+            stateObject.sSocket);
+
+        Console.Write("Wysylanie odpowiedzi.");
+        writeDot(asyncSend);
+    }
+
+    public static void sendCallback(IAsyncResult asyncSend)
+    {
+        Socket serverSocket = (Socket)asyncSend.AsyncState;
+        int bytesSent = serverSocket.EndSend(asyncSend);
+        Console.WriteLine(
+          ".Wyslano {0} bajtow.{1}{1}Zamykanie gniazd.",
+          bytesSent.ToString(),
+          Environment.NewLine);
+
+        serverSocket.Shutdown(SocketShutdown.Both);
+        serverSocket.Close();
+    }
+
+    internal static bool writeDot(IAsyncResult ar)
+    {
+        int i = 0;
+        while (ar.IsCompleted == false)
+        {
+            if (i++ > 40)
+            {
+                Console.WriteLine("Przekroczony czas oczekiwania.");
+                return false;
+            }
+            Console.Write(".");
+            Thread.Sleep(500);
+        }
+        return true;
+    }
+}
+
+
+/// wydruk
+
+using System;
+using System.Threading;
+using System.Text;
+using System.Net;
+using System.Net.Sockets;
+
+public class Client
+{
+
+    class StateObject
+    {
+        internal byte[] sBuffer;
+        internal Socket sSocket;
+        internal StateObject(int size, Socket sock)
+        {
+            sBuffer = new byte[size];
+            sSocket = sock;
+        }
+    }
+
+    static void Main()
+    {
+        string[] argHostName = new string[5];
+        argHostName[0] = "localhost";
+
+
+        if (argHostName.Length > 0)
+        {
+            IPAddress ipAddress =
+              //Dns.Resolve(argHostName[0]).AddressList[0]; (przestarzaL^be)
+              Dns.GetHostEntry(argHostName[0]).AddressList[0];
+
+            IPEndPoint ipEndpoint =
+              new IPEndPoint(ipAddress, 1900);
+
+            Socket clientSocket = new Socket(
+              AddressFamily.InterNetworkV6,
+              SocketType.Stream,
+              ProtocolType.Tcp);
+
+            IAsyncResult asyncConnect = clientSocket.BeginConnect(
+              ipEndpoint,
+              new AsyncCallback(connectCallback),
+              clientSocket);
+
+            Console.Write("Lacze sie.");
+            if (writeDot(asyncConnect) == true)
+            {
+                Thread.Sleep(3000);
+            }
+        }
+        Console.ReadLine();
+    }
+
+    public static void connectCallback(IAsyncResult asyncConnect)
+    {
+        Socket clientSocket =
+          (Socket)asyncConnect.AsyncState;
+        clientSocket.EndConnect(asyncConnect);
+
+        if (clientSocket.Connected == false)
+        {
+            Console.WriteLine(".klient nie polaczony.");
+            return;
+        }
+        else Console.WriteLine(".klient polaczony.");
+
+        byte[] sendBuffer = Encoding.ASCII.GetBytes("Hello");
+        IAsyncResult asyncSend = clientSocket.BeginSend(
+          sendBuffer,
+          0,
+          sendBuffer.Length,
+          SocketFlags.None,
+          new AsyncCallback(sendCallback),
+          clientSocket);
+
+        Console.Write("Wysylanie danych.");
+        writeDot(asyncSend);
+    }
+
+    public static void sendCallback(IAsyncResult asyncSend)
+    {
+        Socket clientSocket = (Socket)asyncSend.AsyncState;
+        int bytesSent = clientSocket.EndSend(asyncSend);
+        Console.WriteLine(
+          ".Wyslano {0} bajtow.",
+          bytesSent.ToString());
+
+        StateObject stateObject =
+          new StateObject(16, clientSocket);
+
+        IAsyncResult asyncReceive =
+          clientSocket.BeginReceive(
+            stateObject.sBuffer,
+            0,
+            stateObject.sBuffer.Length,
+            SocketFlags.None,
+            new AsyncCallback(receiveCallback),
+            stateObject);
+
+        Console.Write("Odbieranie odpowiedzi serwera.");
+        writeDot(asyncReceive);
+    }
+
+    public static void receiveCallback(IAsyncResult asyncReceive)
+    {
+        StateObject stateObject =
+         (StateObject)asyncReceive.AsyncState;
+
+        int bytesReceived =
+          stateObject.sSocket.EndReceive(asyncReceive);
+
+        Console.WriteLine(
+          ".Otrzymano {0} bajtow: {1}{2}{2}Zamykanie polaczenia.",
+          bytesReceived.ToString(),
+          Encoding.ASCII.GetString(stateObject.sBuffer),
+          Environment.NewLine);
+
+        stateObject.sSocket.Shutdown(SocketShutdown.Both);
+        stateObject.sSocket.Close();
+    }
+
+    internal static bool writeDot(IAsyncResult ar)
+    {
+        int i = 0;
+        while (ar.IsCompleted == false)
+        {
+            if (i++ > 20)
+            {
+                Console.WriteLine("Przekroczono czas polaczenia z serwerem.");
+                return false;
+            }
+            Console.Write(".");
+            Thread.Sleep(100);
+        }
+        return true;
+    }
+}
+
+
+/// wydruk
+
+Lacze sie..klient polaczony.
+.Wyslano 5 bajtow.
+Odbieranie odpowiedzi serwera...Otrzymano 7 bajtow: Goodbye
+
+Zamykanie polaczenia.
+Wysylanie danych.
+
+
+
+Zadanie 1 Opis 2 -------------------------------------
+
+/// wydruk
+
+using System;
+using System.Threading;
+using System.Text;
+using System.Net;
+using System.Net.Sockets;
+
+
+public class Server
+{
+
+    private const int listenPort = 11000;
+    private static void StartListener()
+    {
+        UdpClient listener = new UdpClient(listenPort);
+        IPEndPoint groupEP = new IPEndPoint(IPAddress.Any, listenPort);
+
+        try
+        {
+            while (true)
+            {
+                Console.WriteLine("Czekanie na tekst");
+                byte[] bytes = listener.Receive(ref groupEP);
+
+                Console.WriteLine($"Otrzymano tekst od {groupEP} :");
+                Console.WriteLine($" {Encoding.ASCII.GetString(bytes, 0, bytes.$
+            }
+        }
+        catch (SocketException e)
+        {
+            Console.WriteLine(e);
+        }
+        finally
+        {
+            listener.Close();
+        }
+    }
+    static void Main()
+    {
+        StartListener();
+    }
+}
+
+/// wydruk
+
+using System;
+using System.Threading;
+using System.Text;
+using System.Net;
+using System.Net.Sockets;
+
+public class Client
+{
+
+    static void Main()
+    {
+
+
+        Boolean exception_thrown = false;
+
+        Socket sending_socket = new Socket(AddressFamily.InterNetwork, SocketTy$
+
+        IPAddress send_to_address = IPAddress.Parse("127.0.0.1");
+
+        IPEndPoint sending_end_point = new IPEndPoint(send_to_address, 11000);
+
+
+
+            Console.WriteLine("Wpisz tekst do przeslania");
+            string text_to_send = Console.ReadLine();
+
+            byte[] send_buffer = Encoding.ASCII.GetBytes(text_to_send);
+            Console.WriteLine("Wysylanie do: {0} port: {1}",
+            sending_end_point.Address,
+            sending_end_point.Port);
+            try
+            {
+                 sending_socket.SendTo(Encoding.ASCII.GetBytes(text_to_send), s$
+            }
+            catch (Exception send_exception)
+            {
+                 exception_thrown = true;
+                 Console.WriteLine(" Exception {0}", send_exception.Message);
+            if (exception_thrown == false)
+            {
+                 Console.WriteLine("Wiadomosc zostala wyslana");
+            }
+            else
+            {
+                exception_thrown = false;
+                Console.WriteLine("Wiadomosc nie zostala wyslana");
+            }
+
+
+
+    }
+}
+
+
+/// wydruk
+(okno_1)
+
+Wpisz tekst do przeslania
+dssfs
+
+
+/// wydruk
+(okno_2)
+
+Czekanie na tekst
+Otrzymano tekst od 127.0.0.1:53124 :
+ dssfs
+Czekanie na tekst
+
+
+
+
+
+
+Zadanie 2 Opis 2 -------------------------------------
+
+/// wydruk
+
+using System;
+using System.Threading;
+using System.Text;
+using System.Net;
+using System.Net.Sockets;
+
+public class Server
+{
+
+    private const int listenPort = 11000;
+    private static void StartListener()
+    {
+        UdpClient listener = new UdpClient(listenPort);
+        IPEndPoint groupEP = new IPEndPoint(IPAddress.Any, listenPort);
+
+        try
+        {
+            while (true)
+            {
+                Console.WriteLine("Czekanie na tekst");
+                byte[] bytes = listener.Receive(ref groupEP);
+
+                Console.WriteLine($"Otrzymano tekst od {groupEP} :");
+                Console.WriteLine($" {Encoding.ASCII.GetString(bytes, 0, bytes.$
+            }
+        }
+        catch (SocketException e)
+        {
+            Console.WriteLine(e);
+        }
+        finally
+        {
+            listener.Close();
+        }
+    }
+    static void Main()
+    {
+        StartListener();
+    }
+}
+
+/// wydruk
+
+using System;
+using System.Threading;
+using System.Text;
+using System.Net;
+using System.Net.Sockets;
+
+public class Client
+{
+
+    static void Main()
+    {
+
+        Boolean done = false;
+        Boolean exception_thrown = false;
+
+        Socket sending_socket = new Socket(AddressFamily.InterNetwork, SocketTy$
+
+        IPAddress send_to_address = IPAddress.Parse("127.0.0.1");
+
+        IPEndPoint sending_end_point = new IPEndPoint(send_to_address, 11000);
+
+        while (!done)
+        {
+            Console.WriteLine("Wpisz tekst do przeslania, albo nic, aby wyjsc");
+            string text_to_send = Console.ReadLine();
+            if (text_to_send.Length == 0)
+            {
+                done = true;
+            }
+            else
+            {
+                byte[] send_buffer = Encoding.ASCII.GetBytes(text_to_send);
+                Console.WriteLine("Wysylanie do: {0} port: {1}",
+                sending_end_point.Address,
+                sending_end_point.Port);
+                try
+                {
+                    sending_socket.SendTo(Encoding.ASCII.GetBytes(text_to_send)$
+                }
+                catch (Exception send_exception)
+                {
+                    exception_thrown = true;
+                    Console.WriteLine(" Exception {0}", send_exception.Message);
+                }
+                if (exception_thrown == false)
+                {
+                    Console.WriteLine("Wiadomosc zostala wyslana");
+                }
+                else
+                {
+                    exception_thrown = false;
+                    Console.WriteLine("Wiadomosc nie zostala wyslana");
+                }
+            }
+
+        }
+    }
+}
+
+
+/// wydruk
+(okno_1)
+
+Czekanie na tekst
+Otrzymano tekst od 127.0.0.1:65276 :
+ 123
+Czekanie na tekst
+Otrzymano tekst od 127.0.0.1:65276 :
+ abcdefgh
+Czekanie na tekst
+
+/// wydruk
+(okno_2)
+
+Wpisz tekst do przeslania, albo nic, aby wyjsc
+123
+Wysylanie do: 127.0.0.1 port: 11000
+Wiadomosc zostala wyslana
+Wpisz tekst do przeslania, albo nic, aby wyjsc
+abcdefgh
+Wysylanie do: 127.0.0.1 port: 11000
+Wiadomosc zostala wyslana
+Wpisz tekst do przeslania, albo nic, aby wyjsc
